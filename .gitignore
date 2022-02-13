@@ -1,2 +1,7 @@
 *.png
 *.npy
+*.pyc
+.DS_Store
+
+.ipynb_checkpoints/
+checkpoint/
