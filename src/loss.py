@@ -9,10 +9,23 @@ def L2_loss(pred, target):
     loss = torch.mean(torch.pow((pred - target), 2))
     return loss
 
+def heatmap2coord(heatmap):
+    coords = list()
+
+    for idx in range(10):
+        coord = np.array(np.where(heatmap[idx] > heatmap[idx].max() * .95))
+        coord = np.round(coord.mean(axis=1))
+        coords.append(coords)
+    
+    return np.array(coords)
+
+def AC_loss(pred, target):
+    pass
+
 def mean_radial_error(pred, target):
     loss = pred - target
     loss = torch.pow(loss, 2)
-    loss = torch.sum(loss, axis=1)
+    loss = torch.sum(loss, axis=-1)
     loss = torch.sqrt(loss)
     loss = torch.mean(loss)
 
@@ -21,7 +34,7 @@ def mean_radial_error(pred, target):
 if __name__ == '__main__':
     import numpy as np
     
-    pred = np.array([
+    pred = np.array([[
         [385, 279], 
         [379, 466],
         [458, 422],
@@ -32,9 +45,9 @@ if __name__ == '__main__':
         [753, 485],
         [744, 502],
         [619, 235],
-        ])
+        ]])
 
-    true = np.array([
+    true = np.array([[
         [379, 280], 
         [375, 469],
         [460, 428],
@@ -45,7 +58,7 @@ if __name__ == '__main__':
         [751, 491],
         [745, 503],
         [620, 233],
-    ]) 
+    ]]) 
 
     pred = torch.tensor(pred, dtype=torch.float32)
     true = torch.tensor(true, dtype=torch.float32)
