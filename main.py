@@ -20,7 +20,7 @@ def main():
     parser.add_argument('--save_folder', type=str, default='./checkpoint')
 
     parser.add_argument('--epochs', type=int, default=500)
-    parser.add_argument('--batch_size', type=int, default=16)
+    parser.add_argument('--batch_size', type=int, default=8)
     parser.add_argument('--lr', type=float, default=1e-4)
     
     parser.add_argument('--device', type=str, default=device)
@@ -52,7 +52,7 @@ def main():
             batch_size=args.batch_size,
             shuffle=True,
             pin_memory=True,
-            num_workers=2,
+            num_workers=8,
         )
 
     valid_data_loader = torch.utils.data.DataLoader(
@@ -60,7 +60,7 @@ def main():
             batch_size=args.batch_size,
             shuffle=False,
             pin_memory=True,
-            num_workers=2,
+            num_workers=8,
         )
 
     model = UNet()
@@ -70,8 +70,8 @@ def main():
     loss = torch.nn.MSELoss()
     metric = loss
     optimizer = torch.optim.Adam(model.parameters(), args.lr, betas=(0.9, 0.99))
-    # scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=25)
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, 500)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=25)
+    # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, 500)
     # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
     #     optimizer=optimizer,
     #     mode='max',
@@ -92,7 +92,7 @@ def main():
             mode='min', 
             scheduler=scheduler, 
             num_epochs=args.epochs,
-            num_snapshops=None,
+            num_snapshops=int(args.epochs // 25),
             parallel=False,
             use_amp=True,
             use_wandb=False,            

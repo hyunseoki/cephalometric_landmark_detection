@@ -9,12 +9,13 @@ from albumentations.pytorch.transforms import ToTensorV2
 
 
 class LandmarkDataset(Dataset):
-    def __init__(self, base_folder, transforms=None):
+    def __init__(self, base_folder, pow_n=8, transforms=None):
         self.base_folder = base_folder        
         self.image_fns = glob.glob(os.path.join(base_folder, 'image', '*.png'))
         self.heatmap_folders = [os.path.join(base_folder, 'heatmap', str(i)) for i in range(101, 111)]
         self.num_landmarks = len(self.heatmap_folders)
         self.transforms =  transforms
+        self.pow_n = pow_n
 
         assert len(self.image_fns) > 0
         for folder in self.heatmap_folders: assert os.path.isdir(folder)
@@ -26,7 +27,7 @@ class LandmarkDataset(Dataset):
         img = cv2.cvtColor(cv2.imread(self.image_fns[idx]), cv2.COLOR_BGR2GRAY)
         mask = list()
 
-        for mark_idx, folder in enumerate(self.heatmap_folders):
+        for folder in self.heatmap_folders:
             mask_fn = os.path.join(folder, os.path.basename(self.image_fns[idx]))
             mask.append(cv2.cvtColor(cv2.imread(mask_fn), cv2.COLOR_BGR2GRAY))      
 
@@ -34,15 +35,20 @@ class LandmarkDataset(Dataset):
             transformed = self.transforms(image=img, masks=mask)
             img, mask = transformed['image'], transformed['masks']
 
-            img = img / 255.0
-            mask = [mask_img/mask_img.max() for mask_img in mask]            
-            mask = np.array(mask)
+        img = img / 255.0
+        mask = np.array(mask, dtype=float)
 
-            if type(img) == torch.Tensor:
-                mask = torch.tensor(mask, dtype=torch.float32)
+        for i in range(self.num_landmarks):
+            mask[i] = np.power(mask[i], self.pow_n)
+            mask[i] = mask[i] / mask[i].max()        
+        
+        if type(img) == torch.Tensor:
+            mask = torch.tensor(mask, dtype=torch.float32)
+        #     mask = torch.pow(mask, self.pow_n)
+        #     mask = mask / mask.max()         
 
         sample = dict()
-        sample['id'] = os.path.basename(self.image_fns[mark_idx])
+        sample['id'] = os.path.basename(self.image_fns[idx])
         sample['input'] = img
         sample['target'] = mask
 
@@ -81,8 +87,8 @@ def get_test_transforms():
 
 
 if __name__ == '__main__':
-    dataset = LandmarkDataset(r'data/train', transforms=get_train_transforms())
-    # dataset = LandmarkDataset(r'data/train', transforms=None)
+    # dataset = LandmarkDataset(r'data/train', transforms=get_train_transforms())
+    dataset = LandmarkDataset(r'data/train', transforms=None)
     sample = dataset[3]
     img, mask = sample['input'], sample['target']
     import matplotlib.pyplot as plt
