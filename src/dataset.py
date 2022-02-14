@@ -99,6 +99,6 @@ if __name__ == '__main__':
     for idx in range(10):
         plt.subplot(2,5,idx+1)
         plt.axis('off')
-        plt.imshow(mask[idx], 'gray')
+        plt.imshow(mask[idx], 'jet')
 
     plt.show()
