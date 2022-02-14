@@ -25,25 +25,21 @@ class LandmarkDataset(Dataset):
     def __getitem__(self, idx):
         img = cv2.cvtColor(cv2.imread(self.image_fns[idx]), cv2.COLOR_BGR2GRAY)
         mask = list()
-        # mask = np.zeros(shape=(self.num_landmarks, img.shape[0], img.shape[1]))
 
         for mark_idx, folder in enumerate(self.heatmap_folders):
-            mask_fn = os.path.join(folder, os.path.basename(self.image_fns[mark_idx]))
-            mask.append(cv2.cvtColor(cv2.imread(mask_fn), cv2.COLOR_BGR2GRAY))
-            # mask[mark_idx] = cv2.cvtColor(cv2.imread(mask_fn), cv2.COLOR_BGR2GRAY)
-
+            mask_fn = os.path.join(folder, os.path.basename(self.image_fns[idx]))
+            mask.append(cv2.cvtColor(cv2.imread(mask_fn), cv2.COLOR_BGR2GRAY))      
 
         if self.transforms != None:
             transformed = self.transforms(image=img, masks=mask)
             img, mask = transformed['image'], transformed['masks']
 
             img = img / 255.0
-            mask = np.array(mask) / 255.0 
-            # mask = np.power(mask, 3)
+            mask = [mask_img/mask_img.max() for mask_img in mask]            
+            mask = np.array(mask)
 
             if type(img) == torch.Tensor:
                 mask = torch.tensor(mask, dtype=torch.float32)
-                # mask = torch.pow(mask, 3)
 
         sample = dict()
         sample['id'] = os.path.basename(self.image_fns[mark_idx])
@@ -86,6 +82,7 @@ def get_test_transforms():
 
 if __name__ == '__main__':
     dataset = LandmarkDataset(r'data/train', transforms=get_train_transforms())
+    # dataset = LandmarkDataset(r'data/train', transforms=None)
     sample = dataset[3]
     img, mask = sample['input'], sample['target']
     import matplotlib.pyplot as plt
