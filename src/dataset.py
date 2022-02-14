@@ -43,9 +43,7 @@ class LandmarkDataset(Dataset):
             mask[i] = mask[i] / mask[i].max()        
         
         if type(img) == torch.Tensor:
-            mask = torch.tensor(mask, dtype=torch.float32)
-        #     mask = torch.pow(mask, self.pow_n)
-        #     mask = mask / mask.max()         
+            mask = torch.tensor(mask, dtype=torch.float32)        
 
         sample = dict()
         sample['id'] = os.path.basename(self.image_fns[idx])
@@ -59,7 +57,7 @@ def get_train_transforms():
     return A.Compose(
         [
             A.Affine(
-                scale=(0.9, 1.1),
+                scale=(0.9, 1.2),
                 rotate=(25),
                 translate_percent=(0.05, 0.05),
                 cval=0,
