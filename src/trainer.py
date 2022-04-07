@@ -28,57 +28,6 @@ class AverageMeter(object):
         self.avg = self.sum / self.count
 
 
-def accuracy(output, target, topk=(1,)):
-    """Computes the accuracy over the k top predictions for the specified values of k"""
-    with torch.no_grad():
-        maxk = max(topk)
-        batch_size = target.size(0)
-
-        prob, pred = output.topk(maxk, 1, True, True)
-        pred = pred.t()
-        correct = pred.eq(target.view(1, -1).expand_as(pred))
-
-        res = []
-        for k in topk:
-            correct_k = correct[:k].view(-1).float().sum(0, keepdim=True)
-            res.append(correct_k.mul_(100.0 / batch_size))
-        return res
-
-
-def rand_bbox(size, lam):
-    W = size[2]
-    H = size[3]
-    cut_rat = np.sqrt(1. - lam)
-    cut_w = np.int(W * cut_rat)
-    cut_h = np.int(H * cut_rat)
-
-    # uniform
-    cx = np.random.randint(W)
-    cy = np.random.randint(H)
-
-    bbx1 = np.clip(cx - cut_w // 2, 0, W)
-    bby1 = np.clip(cy - cut_h // 2, 0, H)
-    bbx2 = np.clip(cx + cut_w // 2, 0, W)
-    bby2 = np.clip(cy + cut_h // 2, 0, H)
-    return bbx1, bby1, bbx2, bby2
-
-
-def cutmix(data, target, alpha):
-    indices = torch.randperm(data.size(0))
-    shuffled_data = data[indices]
-    shuffled_target = target[indices]
-
-    lam = np.clip(np.random.beta(alpha, alpha),0.3,0.4)
-    bbx1, bby1, bbx2, bby2 = rand_bbox(data.size(), lam)
-    new_data = data.clone()
-    new_data[:, :, bby1:bby2, bbx1:bbx2] = data[indices, :, bby1:bby2, bbx1:bbx2]
-    # adjust lambda to exactly match pixel ratio
-    lam = 1 - ((bbx2 - bbx1) * (bby2 - bby1) / (data.size()[-1] * data.size()[-2]))
-    targets = (target, shuffled_target, lam)
-
-    return new_data, targets
-
-
 def train(train_loader, model, loss_func, metric_func, device, optimizer, use_amp):
     running_metric = AverageMeter()
     running_loss = AverageMeter()
@@ -99,8 +48,13 @@ def train(train_loader, model, loss_func, metric_func, device, optimizer, use_am
                 with torch.cuda.amp.autocast():
                     output = model(train_x)
                     loss = loss_func(output, train_y)
+
+                    # L2_loss = loss_func['L2_loss'](output, train_y)
+                    # AC_loss = loss_func['AC_loss'](output, train_y, device=device)
+                    # loss = L2_loss * AC_loss
+                    
                     loss_value = loss.detach().cpu().numpy()
-                    metric_value = metric_func(output.detach(), train_y.detach()).cpu().numpy()
+                    metric_value = metric_func(output.detach().cpu(), train_y.detach().cpu()).numpy()
 
                 scaler.scale(loss).backward()
                 scaler.step(optimizer)
@@ -109,15 +63,19 @@ def train(train_loader, model, loss_func, metric_func, device, optimizer, use_am
             else:
                 output = model(train_x)
                 loss = loss_func(output, train_y)
+                # L2_loss = loss_func['L2_loss'](output, train_y)
+                # AC_loss = loss_func['AC_loss'](output, train_y, device=device)
+                # loss = L2_loss * AC_loss
+
                 loss_value = loss.detach().cpu().numpy()
-                metric_value = metric_func(output.detach(), train_y.detach()).cpu().numpy()
+                metric_value = metric_func(output.detach().cpu(), train_y.detach().cpu()).numpy()
 
                 loss.backward()
                 optimizer.step()
                 
             running_loss.update(loss_value.item(), train_x.size(0))
             running_metric.update(metric_value.item(), train_x.size(0))                
-            
+
             log = 'loss - {:.5f}, metric - {:.5f}'.format(running_loss.avg, running_metric.avg)
             iterator.set_postfix_str(log)
 
@@ -137,8 +95,12 @@ def validate(valid_loader, model, loss_func, metric_func, device):
                 output = model.forward(train_x)
             
             loss = loss_func(output, train_y)
+            # L2_loss = loss_func['L2_loss'](output, train_y)
+            # LC_loss = loss_func['AC_loss'](output, train_y, device=device)
+            # loss = L2_loss * LC_loss            
+
             loss_value = loss.detach().cpu().numpy()
-            metric_value = metric_func(output.detach(), train_y.detach()).cpu().numpy() 
+            metric_value = metric_func(output.detach().cpu(), train_y.detach().cpu()).numpy()
 
             running_loss.update(loss_value, train_x.size(0))
             running_metric.update(metric_value, train_x.size(0))                

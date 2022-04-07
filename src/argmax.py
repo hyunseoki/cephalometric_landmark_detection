@@ -1,23 +1,33 @@
 import torch
+import numpy as np
 
-def get_gridmap(shape=(10, 10)):
-    Ymap, Xmap = np.mgrid[0:shape[1]:1, 0:shape[0]:1]
-    Ymap, Xmap = torch.tensor(Ymap.flatten(), dtype=torch.float32).unsqueeze(1),\
-                 torch.tensor(Xmap.flatten(),dtype=torch.float32).unsqueeze(1)
 
-    return Ymap, Xmap
+def softargmax1d(input, beta=100):
+    *_, n = input.shape
+    input = torch.nn.functional.softmax(beta * input, dim=-1)
+    indices = torch.linspace(0, 1, n)
+    result = torch.sum((n - 1) * input * indices, dim=-1)
+    return result
 
-def argsoftmax(x, index, beta=1e-5):
-    a =torch.exp(-torch.abs(x-x.max())/(beta))
-    b =torch.sum(a)
-    softmax = a / b
-    return torch.sum(softmax * index)
 
-if __name__ == '__main__':
-    import numpy as np
-    H, W = 10, 10
-    Ymap, Xmap = np.mgrid[0:H:1, 0:W:1]
-    Ymap, Xmap = torch.tensor(Ymap.flatten(), dtype=torch.float).unsqueeze(1).to('cpu'),\
-                 torch.tensor(Xmap.flatten(),dtype=torch.float).unsqueeze(1).to('cpu')
+def softargmax2d(input, beta=100, device='cpu'):
+    *_, h, w = input.shape
 
-    print('dd')
+    input = input.reshape(*_, h * w)
+    input = torch.nn.functional.softmax(beta * input, dim=-1)
+
+    indices_c, indices_r = np.meshgrid(
+        np.linspace(0, 1, w),
+        np.linspace(0, 1, h),
+        indexing='xy'
+    )
+
+    indices_r = torch.tensor(np.reshape(indices_r, (-1, h * w)), device=device)
+    indices_c = torch.tensor(np.reshape(indices_c, (-1, h * w)), device=device)
+
+    result_r = torch.sum((h - 1) * input * indices_r, dim=-1)
+    result_c = torch.sum((w - 1) * input * indices_c, dim=-1)
+
+    result = torch.stack([result_r, result_c], dim=-1)
+
+    return result

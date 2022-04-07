@@ -3,6 +3,7 @@ import torch.nn as nn
 from torch.nn import functional as F
 
 
+### Convetional UNet ###
 class ConvBlock(nn.Module):
     def __init__(self, in_channels, out_channels, kernel_size=3, stride=1, padding=1, **kwargs):
         super().__init__()
@@ -122,8 +123,97 @@ class UNet(nn.Module):
             return F.softmax(x, dim=1)
 
 
-if __name__ == '__main__':
-    model = UNet(n_filters=1)
-    x = torch.randn(size=(3, 1, 16, 16), device='cpu')
+### Squeeze-and-Excitation UNet ###
+class SEBlock(nn.Module):
+    def __init__(self, in_channels, reduction_ratio=16):
+        super().__init__()
+        self.fc1 = nn.Linear(in_channels, in_channels//reduction_ratio)
+        self.fc2 = nn.Linear(in_channels//reduction_ratio, in_channels)
+        self.avgpool = nn.AdaptiveAvgPool2d(1)
+    
+    def forward(self, x):
+        b, c, _, _ = x.size()
+        w = self.avgpool(x).view(b, c)
+        w = F.relu(self.fc1(w))
+        w = torch.sigmoid(self.fc2(w)).view(b, c, 1, 1)
 
+        return x * w.expand_as(x)
+
+
+class SEUNet(nn.Module):
+    def __init__(self, in_channels=1, out_channels=10, n_filters=64, reduction_ratio=16):
+        super().__init__()
+        assert n_filters > reduction_ratio        
+        self.out_channels = out_channels
+
+        ## encoder
+        self.left1 = ConvBlock(in_channels=in_channels, out_channels=n_filters)
+        self.left2 = nn.Sequential(
+            max_pool(),
+            ConvBlock(in_channels=n_filters, out_channels=n_filters * 2),
+            SEBlock(in_channels=n_filters * 2, reduction_ratio=reduction_ratio),
+        )        
+        self.left3 = nn.Sequential(
+            max_pool(),
+            ConvBlock(in_channels=n_filters * 2, out_channels=n_filters * 4),
+            SEBlock(in_channels=n_filters * 4, reduction_ratio=reduction_ratio),
+        )
+
+        ## center
+        self.center = nn.Sequential(
+            max_pool(),
+            ConvBlock(in_channels=n_filters * 4, out_channels=n_filters * 8),
+            SEBlock(in_channels=n_filters * 8, reduction_ratio=reduction_ratio),
+        )
+        
+        ## decoder
+        self.up3 = UpsampleBlock(in_channels=n_filters * 8, out_channels=n_filters * 4)
+        self.right3 = nn.Sequential(
+            ConvBlock(in_channels=n_filters * 8, out_channels=n_filters * 4),
+            SEBlock(in_channels=n_filters * 4, reduction_ratio=reduction_ratio),
+        )
+        self.up2 = UpsampleBlock(in_channels=n_filters * 4, out_channels=n_filters * 2)
+        self.right2 = nn.Sequential(
+            ConvBlock(in_channels=n_filters * 4, out_channels=n_filters * 2),
+            SEBlock(in_channels=n_filters * 2, reduction_ratio=reduction_ratio),
+        )
+        self.up1 = UpsampleBlock(in_channels=n_filters * 2, out_channels=n_filters * 1)
+        self.right1 = nn.Sequential(
+            ConvBlock(in_channels=n_filters * 2, out_channels=n_filters * 1),
+            SEBlock(in_channels=n_filters * 1, reduction_ratio=reduction_ratio),
+        )
+        
+        ## score
+        self.score = nn.Conv2d(
+            in_channels=n_filters * 1, 
+            out_channels=self.out_channels,
+            kernel_size=1,
+        )
+
+
+    def forward(self, x):
+        left1 = self.left1(x)
+        left2 = self.left2(left1)
+        left3 = self.left3(left2)
+
+        center = self.center(left3)
+
+        x = self.right3(torch.cat([self.up3(center), left3], 1))
+        x = self.right2(torch.cat([self.up2(x), left2], 1))
+        x = self.right1(torch.cat([self.up1(x), left1], 1))
+        x = self.score(x)      
+
+        if self.out_channels == 1:
+            return torch.sigmoid(x)
+        else:
+            return F.softmax(x, dim=1)
+
+
+if __name__ == '__main__':
+    # model = UNet(n_filters=1)
+    # x = torch.randn(size=(3, 1, 16, 16), device='cpu')
+    # print(model(x).shape)
+
+    model = SEUNet()
+    x = torch.randn(size=(3, 1, 16, 16), device='cpu')
     print(model(x).shape)

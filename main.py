@@ -3,13 +3,18 @@ import argparse
 import torch
 from src import (    
     LandmarkDataset,
+    L2_loss,
+    AC_loss,
+    mean_radial_error,
     ModelTrainer,
     UNet,
+    SEUNet,
     load_model_weights,
     seed_everything,
     get_train_transforms, 
     get_valid_transforms,
 )
+
 
 def main():
     device = "cuda:0" if torch.cuda.is_available() else "cpu"
@@ -19,7 +24,9 @@ def main():
     parser.add_argument('--base_folder', type=str, default='./data')
     parser.add_argument('--save_folder', type=str, default='./checkpoint')
 
+    parser.add_argument('--model', type=str, default='SEUNet')
     parser.add_argument('--epochs', type=int, default=500)
+    parser.add_argument('--T0', type=int, default=25)
     parser.add_argument('--batch_size', type=int, default=8)
     parser.add_argument('--lr', type=float, default=1e-4)
     
@@ -63,14 +70,19 @@ def main():
             num_workers=8,
         )
 
-    model = UNet()
+    if args.model == 'UNet':
+        model = UNet()
+    elif args.model =='SEUNet':
+        model = SEUNet()
+
     if args.resume != None:
         model = load_model_weights(model, args.resume)
     
-    loss = torch.nn.MSELoss()
-    metric = loss
+    loss = L2_loss
+    # loss = {'L2_loss' : L2_loss, 'AC_loss' : AC_loss}      
+    metric = mean_radial_error
     optimizer = torch.optim.Adam(model.parameters(), args.lr, betas=(0.9, 0.99))
-    scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=25)
+    scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=args.T0)
     # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, 500)
     # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
     #     optimizer=optimizer,
@@ -92,17 +104,18 @@ def main():
             mode='min', 
             scheduler=scheduler, 
             num_epochs=args.epochs,
-            num_snapshops=int(args.epochs // 25),
+            # num_snapshops=int(args.epochs // args.T0),
+            num_snapshops=None,
             parallel=False,
             use_amp=True,
-            use_wandb=False,            
+            use_wandb=True,            
         )
 
-    # trainer.initWandb(
-    #     project_name='dacon_farm',
-    #     run_name=args.comments,
-    #     args=args,
-    # )
+    trainer.initWandb(
+        project_name='cephalometric_landmark',
+        run_name=args.comments,
+        args=args,
+    )
 
     trainer.train()
     

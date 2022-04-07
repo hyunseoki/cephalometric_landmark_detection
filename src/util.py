@@ -13,6 +13,7 @@ def seed_everything(seed):
     torch.backends.cudnn.deterministic = True
     torch.backends.cudnn.benchmark = False
 
+
 def load_model_weights(model, weight_fn):
     model_state_dict = torch.load(weight_fn)
     try:
@@ -29,6 +30,7 @@ def load_model_weights(model, weight_fn):
         model.load_state_dict(new_model_state_dict, strict=True)
 
     return model
+
 
 def freeze_weights(model):
     for param in model.parameters():
