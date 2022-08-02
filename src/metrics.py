@@ -1,27 +1,5 @@
 import torch
-from src.argmax import softargmax2d
-
-
-# def heatmap_to_coords(heatmaps, num_landmark=10):
-#     '''
-#     naive style
-#     '''
-#     coords = list()
-
-#     for heatmap in heatmaps:
-#         heatmap_coords = list()
-
-#         for idx in range(num_landmark):            
-#             coord = torch.where(heatmap[idx, :, :] > heatmap[idx, :, :].max() * .95)
-#             coord = torch.round(torch.tensor([coord[0].float().mean(), coord[1].float().mean()]))        
-#             heatmap_coords.append(coord)
-        
-#         heatmap_coords = torch.stack(heatmap_coords)
-#         coords.append(heatmap_coords)
-
-#     coords = torch.stack(coords)
-    
-#     return coords
+from argmax import softargmax2d
 
 
 def L2_loss_metric(pred, target, device='cpu'):

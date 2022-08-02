@@ -35,7 +35,7 @@ class ConvBlock(nn.Module):
         x = self.conv2(x)
         x = self.norm2(x)
         x = self.act(x)
-        
+
         return x
 
 
@@ -54,7 +54,7 @@ class UpsampleBlock(nn.Module):
         )
         self.norm = nn.BatchNorm2d(out_channels, affine=True)
         self.act = nn.LeakyReLU(inplace=True)
-        
+
     def forward(self, x):
         x = self.upsample(x)
         x = self.conv(x)
@@ -115,13 +115,14 @@ class UNet(nn.Module):
         x = self.right3(torch.cat([self.up3(center), left3], 1))
         x = self.right2(torch.cat([self.up2(x), left2], 1))
         x = self.right1(torch.cat([self.up1(x), left1], 1))
-        x = self.score(x)      
+        x = self.score(x)
 
-        if self.out_channels == 1:
-            return torch.sigmoid(x)
-        else:
-            return F.softmax(x, dim=1)
+        # if self.out_channels == 1:
+        #     return torch.sigmoid(x)
+        # else:
+        #     return F.softmax(x, dim=1)
 
+        return x
 
 ### Squeeze-and-Excitation UNet ###
 class SEBlock(nn.Module):
@@ -143,7 +144,7 @@ class SEBlock(nn.Module):
 class SEUNet(nn.Module):
     def __init__(self, in_channels=1, out_channels=10, n_filters=64, reduction_ratio=16):
         super().__init__()
-        assert n_filters > reduction_ratio        
+        assert n_filters > reduction_ratio
         self.out_channels = out_channels
 
         ## encoder
@@ -182,7 +183,7 @@ class SEUNet(nn.Module):
             ConvBlock(in_channels=n_filters * 2, out_channels=n_filters * 1),
             SEBlock(in_channels=n_filters * 1, reduction_ratio=reduction_ratio),
         )
-        
+
         ## score
         self.score = nn.Conv2d(
             in_channels=n_filters * 1, 
@@ -201,13 +202,14 @@ class SEUNet(nn.Module):
         x = self.right3(torch.cat([self.up3(center), left3], 1))
         x = self.right2(torch.cat([self.up2(x), left2], 1))
         x = self.right1(torch.cat([self.up1(x), left1], 1))
-        x = self.score(x)      
+        x = self.score(x)
 
-        if self.out_channels == 1:
-            return torch.sigmoid(x)
-        else:
-            return F.softmax(x, dim=1)
+        # if self.out_channels == 1:
+        #     return torch.sigmoid(x)
+        # else:
+        #     return F.softmax(x, dim=1)
 
+        return x
 
 if __name__ == '__main__':
     # model = UNet(n_filters=1)

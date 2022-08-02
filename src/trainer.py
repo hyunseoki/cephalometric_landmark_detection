@@ -35,7 +35,7 @@ def train(train_loader, model, loss_func, metric_func, device, optimizer, use_am
     if use_amp:
         scaler = torch.cuda.amp.GradScaler()
 
-    model.train()       
+    model.train()
 
     with tqdm.tqdm(train_loader, total=len(train_loader), desc="Train", file=sys.stdout) as iterator:
         for sample in iterator:
@@ -72,7 +72,7 @@ def train(train_loader, model, loss_func, metric_func, device, optimizer, use_am
 
                 loss.backward()
                 optimizer.step()
-                
+
             running_loss.update(loss_value.item(), train_x.size(0))
             running_metric.update(metric_value.item(), train_x.size(0))                
 
@@ -97,7 +97,7 @@ def validate(valid_loader, model, loss_func, metric_func, device):
             loss = loss_func(output, train_y)
             # L2_loss = loss_func['L2_loss'](output, train_y)
             # LC_loss = loss_func['AC_loss'](output, train_y, device=device)
-            # loss = L2_loss * LC_loss            
+            # loss = L2_loss * LC_loss
 
             loss_value = loss.detach().cpu().numpy()
             metric_value = metric_func(output.detach().cpu(), train_y.detach().cpu()).numpy()
@@ -180,7 +180,7 @@ class ModelTrainer:
         startTime = datetime.now()     
 
         print('[info msg] training start !!')
-        for epoch in range(self.num_epochs):        
+        for epoch in range(self.num_epochs):
             print('Epoch {}/{}'.format(epoch+1, self.num_epochs))
             train_epoch_loss, train_epoch_metric = train(
                 train_loader=self.train_loader,
@@ -201,7 +201,7 @@ class ModelTrainer:
                 metric_func=self.metric_func,
                 device=self.device,
                 )                
-            self.valid_loss.append(valid_epoch_loss)        
+            self.valid_loss.append(valid_epoch_loss)
             self.valid_metric.append(valid_epoch_metric)
             self.lr_curve.append(self.optimizer.param_groups[0]['lr'])
 
@@ -222,7 +222,7 @@ class ModelTrainer:
 
             if (self.mode =='min' and valid_epoch_metric < best_metric) or \
                (self.mode =='max' and valid_epoch_metric > best_metric) :
-                best_metric = valid_epoch_metric                
+                best_metric = valid_epoch_metric
                 self.__save_model(param=self.model.state_dict(), fn='model_best.pth')
 
             if self.num_snapshops is not None:
@@ -231,8 +231,8 @@ class ModelTrainer:
                     best_snap_metric = valid_epoch_metric
                     snapshop = self.model.state_dict()
 
-                ## save snapshop            
-                if (epoch + 1) % snapshop_period == 0:                             
+                ## save snapshop
+                if (epoch + 1) % snapshop_period == 0:
                     self.__save_model(param=snapshop, fn=f"snapshop_{cur_num_snapshop}.pth")
 
                     if self.mode =='max':

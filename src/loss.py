@@ -1,5 +1,5 @@
 import torch
-from src.argmax import softargmax2d
+from argmax import softargmax2d
 
 
 def L1_loss(pred, target):
@@ -11,7 +11,7 @@ def L2_loss(pred, target):
     loss = torch.mean(torch.pow((pred - target), 2))
     return loss
 
-def AC_loss(pred, target, device='cpu'):    
+def AC_loss(pred, target, device='cpu'):
     def angle_matrix(coords):
         batch_size, num_landmark, _ = coords.shape
 
@@ -35,7 +35,7 @@ def AC_loss(pred, target, device='cpu'):
     target = softargmax2d(target, device=device)
 
     A_pred = angle_matrix(pred)
-    A_target = angle_matrix(target)    
+    A_target = angle_matrix(target)
     D_pred = distance_matrix(pred)
     D_target = distance_matrix(target)
 

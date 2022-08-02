@@ -1,19 +1,14 @@
 import os
+os.environ['KMP_DUPLICATE_LIB_OK'] = 'True'
 import argparse
 import torch
-from src import (    
-    LandmarkDataset,
-    L2_loss,
-    AC_loss,
-    mean_radial_error,
-    ModelTrainer,
-    UNet,
-    SEUNet,
-    load_model_weights,
-    seed_everything,
-    get_train_transforms, 
-    get_valid_transforms,
-)
+
+from util import seed_everything, load_model_weights, str2bool
+from dataset import LandmarkDataset, get_train_transforms, get_valid_transforms
+from trainer import ModelTrainer
+from model import UNet, SEUNet
+import loss as losses
+import metrics
 
 
 def main():
@@ -21,16 +16,18 @@ def main():
     seed_everything(42)
 
     parser = argparse.ArgumentParser()
+    parser.add_argument('--device', type=str, default=device)
     parser.add_argument('--base_folder', type=str, default='./data')
     parser.add_argument('--save_folder', type=str, default='./checkpoint')
 
-    parser.add_argument('--model', type=str, default='SEUNet')
-    parser.add_argument('--epochs', type=int, default=500)
-    parser.add_argument('--T0', type=int, default=25)
+    parser.add_argument('--model', type=str, choices=['UNet', 'SEUNet'], default='UNet')
+    parser.add_argument('--epochs', type=int, default=600)
     parser.add_argument('--batch_size', type=int, default=8)
     parser.add_argument('--lr', type=float, default=1e-4)
-    
-    parser.add_argument('--device', type=str, default=device)
+
+    parser.add_argument('--T0', type=int, default=25)
+
+    parser.add_argument('--use_wandb', type=str2bool, default=False)
     parser.add_argument('--resume', type=str, default=None)
     parser.add_argument('--comments', type=str, default=None)
 
@@ -73,24 +70,16 @@ def main():
     if args.model == 'UNet':
         model = UNet()
     elif args.model =='SEUNet':
-        model = SEUNet()
+        model = SEUNet(reduction_ratio=8)
 
     if args.resume != None:
         model = load_model_weights(model, args.resume)
     
-    loss = L2_loss
-    # loss = {'L2_loss' : L2_loss, 'AC_loss' : AC_loss}      
-    metric = mean_radial_error
+    loss = losses.L2_loss
+    # loss = {'L2_loss' : L2_loss, 'AC_loss' : AC_loss}
+    metric = metrics.mean_radial_error
     optimizer = torch.optim.Adam(model.parameters(), args.lr, betas=(0.9, 0.99))
     scheduler = torch.optim.lr_scheduler.CosineAnnealingWarmRestarts(optimizer, T_0=args.T0)
-    # scheduler = torch.optim.lr_scheduler.CosineAnnealingLR(optimizer, 500)
-    # scheduler = torch.optim.lr_scheduler.ReduceLROnPlateau(
-    #     optimizer=optimizer,
-    #     mode='max',
-    #     patience=3,
-    #     factor=0.5,
-    #     verbose=True
-    # )
 
     trainer = ModelTrainer(
             model=model,
@@ -108,14 +97,15 @@ def main():
             num_snapshops=None,
             parallel=False,
             use_amp=True,
-            use_wandb=True,            
+            use_wandb=True,
         )
 
-    trainer.initWandb(
-        project_name='cephalometric_landmark',
-        run_name=args.comments,
-        args=args,
-    )
+    if trainer.use_wandb:
+        trainer.initWandb(
+            project_name='cephalometric_landmark',
+            run_name=args.comments,
+            args=args,
+        )
 
     trainer.train()
     

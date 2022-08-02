@@ -2,6 +2,7 @@ import os
 import random
 import numpy as np
 import torch
+import argparse
 
 
 def seed_everything(seed):
@@ -14,8 +15,18 @@ def seed_everything(seed):
     torch.backends.cudnn.benchmark = False
 
 
+def str2bool(v):
+    if v.lower() in ('yes', 'true', 't', 'y', '1'):
+        return True
+    elif v.lower() in ('no', 'false', 'f', 'n', '0'):
+        return False
+    else:
+        raise argparse.ArgumentTypeError('Boolean value expected.')
+
+
 def load_model_weights(model, weight_fn):
-    model_state_dict = torch.load(weight_fn)
+    device = next(model.parameters()).device
+    model_state_dict = torch.load(weight_fn, map_location=device)
     try:
         model.load_state_dict(model_state_dict, strict=True)
     except RuntimeError:
