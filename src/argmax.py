@@ -13,7 +13,7 @@ def softargmax1d(input, beta=100):
 def softargmax2d(input, beta=100, device='cpu'):
     *_, h, w = input.shape
 
-    input = input.reshape(*_, h * w)
+    input = input.reshape(*_, h * w).float()
     input = torch.nn.functional.softmax(beta * input, dim=-1)
 
     indices_c, indices_r = np.meshgrid(
