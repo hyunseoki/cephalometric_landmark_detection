@@ -10,7 +10,7 @@ from albumentations.pytorch.transforms import ToTensorV2
 
 class LandmarkDataset(Dataset):
     def __init__(self, base_folder, pow_n=8, transforms=None):
-        self.base_folder = base_folder        
+        self.base_folder = base_folder
         self.image_fns = glob.glob(os.path.join(base_folder, 'image', '*.png'))
         self.heatmap_folders = [os.path.join(base_folder, 'heatmap', str(i)) for i in range(101, 111)]
         self.num_landmarks = len(self.heatmap_folders)
@@ -29,7 +29,7 @@ class LandmarkDataset(Dataset):
 
         for folder in self.heatmap_folders:
             mask_fn = os.path.join(folder, os.path.basename(self.image_fns[idx]))
-            mask.append(cv2.cvtColor(cv2.imread(mask_fn), cv2.COLOR_BGR2GRAY))      
+            mask.append(cv2.cvtColor(cv2.imread(mask_fn), cv2.COLOR_BGR2GRAY))
 
         if self.transforms != None:
             transformed = self.transforms(image=img, masks=mask)
@@ -40,10 +40,10 @@ class LandmarkDataset(Dataset):
 
         for i in range(self.num_landmarks):
             mask[i] = np.power(mask[i], self.pow_n)
-            mask[i] = mask[i] / mask[i].max()        
+            mask[i] = mask[i] / mask[i].max()
         
         if type(img) == torch.Tensor:
-            mask = torch.tensor(mask, dtype=torch.float32)        
+            mask = torch.tensor(mask, dtype=torch.float32)
 
         sample = dict()
         sample['id'] = os.path.basename(self.image_fns[idx])
